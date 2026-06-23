@@ -7,6 +7,24 @@ Image generation runs through the **[Genblaze SDK](https://github.com/backblaze-
 
 **Why B2:** a product catalog is the textbook storage-curve workload. A growing reference library plus *many* generations per SKU (angles × seasons × revisions) piles up fast — exactly the durable, flat-priced storage B2 is built for. This app makes that curve visible on the dashboard.
 
+## What it looks like
+
+**Dashboard** — SKU, generated-shot, and total-storage metrics with a cumulative storage-growth chart and a recent-generations table, all read live from B2.
+
+![Dashboard with SKU and storage metrics, a storage-growth chart, and recent generations](docs/images/dashboard.png)
+
+**Studio** — the generation surface: enter a SKU, upload a reference photo, write a scene prompt, and pick angle/seasonal presets, variant count, and quality.
+
+![Studio generation form with SKU, reference upload, scene prompt, and angle/season presets](docs/images/studio.png)
+
+**Library** — a SKU picker scoped to the `skus/` prefix, showing each SKU's reference and generated-shot counts plus stored size.
+
+![Library SKU picker showing per-SKU reference and shot counts](docs/images/library.png)
+
+**Library — SKU detail** — one SKU opened to its reference photo and every reference-faithful generated shot, each badged with SHA-256 provenance.
+
+![Library SKU detail with the reference photo and generated shots carrying SHA-256 provenance](docs/images/library-sku-detail.png)
+
 **What you get:**
 - **Studio** — upload a reference photo, write a scene prompt, pick angle/seasonal presets + count + quality, and generate in parallel.
 - **Per-SKU Library** — a scoped explorer showing each SKU's reference photo and every generated shot, with provenance (SHA-256 + manifest URI).
