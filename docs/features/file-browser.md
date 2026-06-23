@@ -1,4 +1,4 @@
-<!-- last_verified: 2026-04-22 -->
+<!-- last_verified: 2026-06-23 -->
 # Feature: File Browser
 
 ## Purpose
@@ -32,7 +32,7 @@ List, preview, download, and delete files stored in Backblaze B2.
 - `GET /files` → `FileMetadata[]` (sorted most recent first)
 - `GET /files/{key}` → `FileMetadata`
 - `GET /files/{key}/download` → `{ url: string }` (presigned URL, attachment disposition, 10-min expiry). Increments the `total_downloads` counter exposed on `/files/stats`. The counter is persisted to `services/api/data/download_count.json` (override via `DOWNLOAD_COUNT_FILE` env var) so it survives API restarts.
-- `GET /files/{key}/preview` → `{ url: string }` (presigned URL for inline rendering, 10-min expiry). Does **not** increment the download counter — used by the preview modal for images / PDFs.
+- `GET /files/{key}/preview` → `{ url: string }` (presigned URL with **`inline` disposition**, 10-min expiry — renders directly in an `<img>`/`<iframe>` even when the bucket is private). Does **not** increment the download counter. Used by the preview modal here and, via the shared `PresignedImage` component, by the Studio result grid, the per-SKU Library, and the reference-photo thumbnail.
 - `DELETE /files/{key}` → `{ deleted: true, key: string }`
 - Side effects: DELETE removes file from B2; `/download` increments the in-memory download counter
 

@@ -17,7 +17,11 @@ which we don't have for a first-time user upload.)
 
 import hashlib
 import logging
+import os
+import tempfile
 import urllib.request
+from pathlib import Path
+from urllib.parse import quote
 
 from genblaze_core import (
     Asset,
@@ -36,8 +40,38 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 PIPELINE_NAME = "ai-product-photo-studio"
-_REFERENCE_MEDIA_TYPE = "image/png"
 _MAX_REFERENCE_BYTES = 50 * 1024 * 1024  # matches OpenAI's edit-input limit
+
+# Magic-byte sniff → (file extension, MIME type). gpt-image-1's /images/edits
+# only accepts image/png|jpeg|webp, so we restrict the reference to those three.
+# The extension matters: the pinned Genblaze SDK hands OpenAI an OPEN FILE
+# HANDLE for the edit input, and the OpenAI client infers the multipart upload
+# mimetype from that handle's *filename*. If the SDK downloads the reference
+# itself it writes a ``.img`` temp file (genblaze_openai/dalle.py
+# ``_download_https_to_temp``) → ``mimetypes.guess_type('*.img')`` is ``None`` →
+# ``application/octet-stream`` → OpenAI 400 ``unsupported_mimetype``. We sidestep
+# that by downloading the reference ourselves to a temp file with a correct
+# image extension and passing a ``file://`` URL: the SDK's ``_resolve_local_file``
+# branch opens our well-named file as-is, so OpenAI infers a valid image type.
+_MAGIC_TO_FORMAT: tuple[tuple[bytes, str, str], ...] = (
+    (b"\x89PNG\r\n\x1a\n", ".png", "image/png"),
+    (b"\xff\xd8\xff", ".jpg", "image/jpeg"),
+)
+
+
+def _sniff_image_format(data: bytes) -> tuple[str, str]:
+    """Return (suffix, media_type) from magic bytes; webp needs a windowed check.
+
+    Defaults to PNG for unrecognized bytes — OpenAI is the final authority on
+    whether the upload is a usable image, but the extension must still name a
+    type its edit route accepts (png/jpeg/webp), never octet-stream.
+    """
+    for magic, suffix, media_type in _MAGIC_TO_FORMAT:
+        if data.startswith(magic):
+            return suffix, media_type
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return ".webp", "image/webp"
+    return ".png", "image/png"
 
 
 def _backend() -> S3StorageBackend:
@@ -72,8 +106,16 @@ def _sink(sku: str) -> ObjectStorageSink:
     )
 
 
-def _reference_asset(reference_url: str) -> Asset:
-    """Download the reference photo and build an Asset with a stable sha256.
+def _reference_asset(reference_url: str) -> tuple[Asset, Path]:
+    """Download the reference photo to a correctly-typed local temp file.
+
+    Returns the Asset (whose ``url`` is a ``file://`` URL to the temp file) and
+    the temp Path so the caller can clean it up after the run. We download here
+    rather than letting the SDK fetch the presigned ``reference_url`` because the
+    SDK's own fetch writes a ``.img`` temp file that OpenAI's edit route rejects
+    as ``application/octet-stream`` (see module docstring + ``_MAGIC_TO_FORMAT``).
+    The temp file lands under the system temp dir, which the SDK's
+    ``_resolve_local_file`` allowlists, so the ``file://`` URL resolves cleanly.
 
     Computing sha256 up front keeps the step cache key and the manifest's
     canonical hash stable across reruns even when ``reference_url`` is a
@@ -84,13 +126,24 @@ def _reference_asset(reference_url: str) -> Asset:
         data = resp.read(_MAX_REFERENCE_BYTES + 1)
     if len(data) > _MAX_REFERENCE_BYTES:
         raise ValueError("Reference photo exceeds 50MB edit-input limit")
-    sha256 = hashlib.sha256(data).hexdigest()
-    return Asset(
-        url=reference_url,
-        media_type=_REFERENCE_MEDIA_TYPE,
-        sha256=sha256,
+
+    suffix, media_type = _sniff_image_format(data)
+    fd, tmp = tempfile.mkstemp(prefix="studio-ref-", suffix=suffix)
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(data)
+    except Exception:
+        Path(tmp).unlink(missing_ok=True)
+        raise
+    tmp_path = Path(tmp)
+
+    asset = Asset(
+        url=f"file://{quote(str(tmp_path.resolve()))}",
+        media_type=media_type,
+        sha256=hashlib.sha256(data).hexdigest(),
         size_bytes=len(data),
     )
+    return asset, tmp_path
 
 
 def _key_from_url(url: str | None) -> str | None:
@@ -144,35 +197,42 @@ def generate_shots(
     if not variant_prompts:
         raise ValueError("At least one variant prompt is required")
 
-    reference = _reference_asset(reference_url)
+    reference, reference_tmp = _reference_asset(reference_url)
 
-    # max_concurrency is a Pipeline(...) constructor kwarg in genblaze-core
-    # 0.3.2 — NOT a run() kwarg (run() takes no **kwargs). Setting it here
-    # caps how many edit steps run in parallel.
-    pipe = Pipeline(
-        PIPELINE_NAME,
-        project_id=sku,
-        max_concurrency=len(variant_prompts) or 1,
-    )
-    for prompt in variant_prompts:
-        # Reference attached as external_inputs => step.inputs is non-empty
-        # => DalleProvider routes to /images/edits (reference-faithful).
-        pipe = pipe.step(
-            DalleProvider(api_key=settings.openai_api_key),
-            model="gpt-image-1",
-            modality=Modality.IMAGE,
-            prompt=prompt,
-            external_inputs=[reference],
-            size=size,
-            quality=quality,
-            input_fidelity=input_fidelity,
+    try:
+        # max_concurrency is a Pipeline(...) constructor kwarg in genblaze-core
+        # 0.3.2 — NOT a run() kwarg (run() takes no **kwargs). Setting it here
+        # caps how many edit steps run in parallel.
+        pipe = Pipeline(
+            PIPELINE_NAME,
+            project_id=sku,
+            max_concurrency=len(variant_prompts) or 1,
         )
+        for prompt in variant_prompts:
+            # Reference attached as external_inputs => step.inputs is non-empty
+            # => DalleProvider routes to /images/edits (reference-faithful).
+            pipe = pipe.step(
+                DalleProvider(api_key=settings.openai_api_key),
+                model="gpt-image-1",
+                modality=Modality.IMAGE,
+                prompt=prompt,
+                external_inputs=[reference],
+                size=size,
+                quality=quality,
+                input_fidelity=input_fidelity,
+            )
 
-    result = pipe.run(
-        sink=_sink(sku),
-        timeout=settings.studio_run_timeout,
-        raise_on_failure=False,
-    )
+        result = pipe.run(
+            sink=_sink(sku),
+            timeout=settings.studio_run_timeout,
+            raise_on_failure=False,
+        )
+    finally:
+        # The SDK opens the temp file during the run (it does not delete it,
+        # since for file:// inputs it treats the path as caller-owned). Remove
+        # it once every variant has been issued.
+        reference_tmp.unlink(missing_ok=True)
+
     run: Run = result.run
     manifest: Manifest = result.manifest
 

@@ -129,23 +129,31 @@ def get_file(key: str) -> FileMetadata:
     return metadata
 
 
-def get_preview_url(key: str) -> str:
-    """Return a presigned URL without recording a download.
-
-    Used by the preview modal for rendering images / PDFs inline — opening
-    a preview is not a user-initiated download and shouldn't inflate the
-    download counter.
-    """
+def _resolve_presigned_url(key: str, *, inline: bool) -> str:
+    """Validate the key, confirm the object exists, and presign a GET URL."""
     validate_key(key)
     metadata = get_file_metadata(key)
     if not metadata:
         raise FileNotFoundError()
-    return get_presigned_url(key, filename=metadata.filename)
+    return get_presigned_url(key, filename=metadata.filename, inline=inline)
+
+
+def get_preview_url(key: str) -> str:
+    """Return an inline presigned URL without recording a download.
+
+    Used by image previews (Files explorer modal, Studio results, the per-SKU
+    Library, and the reference-photo thumbnail) to render objects directly in
+    an ``<img>``. The bucket may be private, so embedding the static public URL
+    would 401; the inline-disposition presigned URL renders regardless of ACL.
+    Opening a preview is not a user-initiated download and shouldn't inflate the
+    download counter.
+    """
+    return _resolve_presigned_url(key, inline=True)
 
 
 def get_download_url(key: str) -> str:
-    """Return a presigned URL and record the event as a download."""
-    url = get_preview_url(key)
+    """Return an attachment presigned URL and record the event as a download."""
+    url = _resolve_presigned_url(key, inline=False)
     _record_download()
     return url
 

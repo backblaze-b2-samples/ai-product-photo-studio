@@ -38,7 +38,7 @@ async def test_downloads_increment_stats(client, monkeypatch):
     monkeypatch.setattr(
         files_service,
         "get_presigned_url",
-        lambda key, filename=None: "https://example.com/file",
+        lambda key, filename=None, inline=False: "https://example.com/file",
     )
 
     response = await client.get("/files/stats")
@@ -74,7 +74,7 @@ async def test_preview_does_not_increment_downloads(client, monkeypatch):
     monkeypatch.setattr(
         files_service,
         "get_presigned_url",
-        lambda key, filename=None: "https://example.com/preview",
+        lambda key, filename=None, inline=False: "https://example.com/preview",
     )
 
     for _ in range(3):
@@ -83,3 +83,61 @@ async def test_preview_does_not_increment_downloads(client, monkeypatch):
         assert response.json()["url"] == "https://example.com/preview"
 
     assert files_service.get_download_count() == 0
+
+
+def test_preview_requests_inline_disposition(monkeypatch):
+    """The preview path must presign with inline disposition so a browser
+    renders the object in an <img> against a private bucket — embedding the
+    static public URL would 401 (see Studio/Library image rendering)."""
+    captured: dict = {}
+
+    def fake_metadata(key: str) -> FileMetadata:
+        return FileMetadata(
+            key=key,
+            filename="shot.png",
+            folder="skus/x/generations/",
+            size_bytes=1024,
+            size_human="1.0 KB",
+            content_type="image/png",
+            uploaded_at=datetime.now(UTC),
+            url=None,
+        )
+
+    def fake_presign(key, filename=None, inline=False):
+        captured.update(key=key, filename=filename, inline=inline)
+        return "https://example.com/inline"
+
+    monkeypatch.setattr(files_service, "get_file_metadata", fake_metadata)
+    monkeypatch.setattr(files_service, "get_presigned_url", fake_presign)
+
+    url = files_service.get_preview_url("skus/x/generations/run/0.png")
+    assert url == "https://example.com/inline"
+    assert captured["inline"] is True
+
+
+def test_download_keeps_attachment_disposition(monkeypatch):
+    """Downloads must NOT be inline — they presign as attachments."""
+    captured: dict = {}
+
+    def fake_metadata(key: str) -> FileMetadata:
+        return FileMetadata(
+            key=key,
+            filename="shot.png",
+            folder="skus/x/generations/",
+            size_bytes=1024,
+            size_human="1.0 KB",
+            content_type="image/png",
+            uploaded_at=datetime.now(UTC),
+            url=None,
+        )
+
+    def fake_presign(key, filename=None, inline=False):
+        captured.update(inline=inline)
+        return "https://example.com/download"
+
+    monkeypatch.setattr(files_service, "_download_count", 0)
+    monkeypatch.setattr(files_service, "get_file_metadata", fake_metadata)
+    monkeypatch.setattr(files_service, "get_presigned_url", fake_presign)
+
+    files_service.get_download_url("skus/x/generations/run/0.png")
+    assert captured["inline"] is False

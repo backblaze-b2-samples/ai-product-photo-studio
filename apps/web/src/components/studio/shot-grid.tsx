@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { PresignedImage } from "@/components/presigned-image";
 import type { GenerationResult } from "@ai-product-photo-studio/shared";
 
 export function ShotGrid({ result }: { result: GenerationResult }) {
@@ -46,10 +47,9 @@ export function ShotGrid({ result }: { result: GenerationResult }) {
               key={shot.key ?? i}
               className="group rounded-lg border border-border overflow-hidden"
             >
-              {shot.url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={shot.url}
+              {shot.key ? (
+                <PresignedImage
+                  objectKey={shot.key}
                   alt={shot.prompt}
                   className="aspect-square w-full object-cover bg-muted"
                 />

@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { GeneratingLoader } from "@/components/ui/generating-loader";
+import { PresignedImage } from "@/components/presigned-image";
 import { ShotGrid } from "./shot-grid";
 import { uploadFile } from "@/lib/api-client";
 import { useGenerateShots } from "@/lib/queries";
@@ -155,10 +156,9 @@ export function StudioForm() {
                 }}
               />
             </label>
-            {reference?.url && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={reference.url}
+            {reference?.key && (
+              <PresignedImage
+                objectKey={reference.key}
                 alt="Reference"
                 className="mt-2 h-28 w-28 rounded-md object-cover border border-border"
               />

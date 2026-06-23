@@ -12,9 +12,16 @@ network call — so SDK upgrades that change the API fail loudly in CI.
 """
 
 import inspect
+import mimetypes
+from pathlib import Path
+from unittest import mock
+from urllib.parse import urlparse
 
 from genblaze_core import Asset, Modality, Pipeline
 from genblaze_openai import DalleProvider
+from genblaze_openai.dalle import _resolve_local_file
+
+from app.repo import studio_pipeline
 
 
 def _build_real_pipeline(n_variants: int) -> Pipeline:
@@ -79,6 +86,72 @@ def test_run_signature_binds_studio_kwargs_and_rejects_max_concurrency():
         for p in run_sig.parameters.values()
     )
     assert not has_var_kw, "run() grew **kwargs — re-check the studio call site"
+
+
+_PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
+_JPEG_MAGIC = b"\xff\xd8\xff\xe0"
+_WEBP_BYTES = b"RIFF\x00\x00\x00\x00WEBP"
+
+
+def _fake_download(payload: bytes):
+    """Patch the urlopen the pipeline uses, returning a context manager."""
+    resp = mock.MagicMock()
+    resp.read.return_value = payload
+    resp.__enter__.return_value = resp
+    resp.__exit__.return_value = False
+    return mock.patch.object(
+        studio_pipeline.urllib.request, "urlopen", return_value=resp
+    )
+
+
+def test_reference_asset_is_a_typed_local_file_not_dotimg():
+    """Regression: the reference reaches OpenAI as a correctly-typed image.
+
+    The pinned SDK hands ``client.images.edit`` an OPEN FILE HANDLE and the
+    OpenAI client infers the multipart mimetype from that handle's filename.
+    If the SDK fetches the presigned URL itself it writes a ``.img`` temp file →
+    ``application/octet-stream`` → OpenAI 400. The app must instead pass a
+    ``file://`` URL to a temp file whose extension names a real image type, and
+    that path must resolve through the SDK's local-file branch.
+    """
+    cases = (
+        (_PNG_MAGIC + b"rest", ".png", "image/png"),
+        (_JPEG_MAGIC + b"rest", ".jpg", "image/jpeg"),
+        (_WEBP_BYTES + b"rest", ".webp", "image/webp"),
+    )
+    for payload, want_suffix, want_media in cases:
+        with _fake_download(payload):
+            asset, tmp = studio_pipeline._reference_asset("https://b2.example/ref?sig=x")
+        try:
+            # Asset carries a file:// URL (NOT the presigned https URL), so the
+            # SDK skips its broken .img download path.
+            assert urlparse(asset.url).scheme == "file"
+            assert asset.url.endswith(want_suffix)
+            assert asset.media_type == want_media
+            # The SDK would open this exact path; its name must yield a real
+            # image mimetype, never octet-stream.
+            resolved = _resolve_local_file(asset.url, None)
+            assert resolved == tmp.resolve()
+            assert mimetypes.guess_type(resolved.name)[0] == want_media
+        finally:
+            tmp.unlink(missing_ok=True)
+        assert not tmp.exists()
+
+
+def test_unknown_reference_bytes_still_named_as_an_image():
+    """Unrecognized bytes must still get an image extension, never .img/octet."""
+    with _fake_download(b"not-an-image-header"):
+        asset, tmp = studio_pipeline._reference_asset("https://b2.example/ref")
+    try:
+        suffix = Path(urlparse(asset.url).path).suffix
+        assert suffix in {".png", ".jpg", ".jpeg", ".webp"}
+        assert mimetypes.guess_type("x" + suffix)[0] in {
+            "image/png",
+            "image/jpeg",
+            "image/webp",
+        }
+    finally:
+        tmp.unlink(missing_ok=True)
 
 
 def test_dalle_step_kwargs_are_accepted():

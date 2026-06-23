@@ -49,3 +49,4 @@ test-results/
 
 # Local runtime data (download counter, etc.)
 services/api/data/
+.local/

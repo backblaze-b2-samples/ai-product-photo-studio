@@ -31,6 +31,11 @@ generated shot — distinct from the full-bucket file explorer.
 - Selecting a SKU lists its reference photos (`uploads/<sku>/reference/`) and its
   generated shots (`skus/<sku>/generations/`), each with run id + provenance timestamp
 - The run id is parsed from the object key so shots from the same generation group visually
+- Each asset thumbnail renders through the shared `PresignedImage` component
+  (`apps/web/src/components/presigned-image.tsx`), which fetches an inline presigned
+  URL from `GET /files/{key}/preview` via the `usePreviewUrl` hook. The bucket is
+  private, so embedding the static public URL would 401 in the browser; the inline
+  presigned URL renders regardless of bucket ACL.
 
 ## Edge Cases
 - Unknown SKU → empty reference/shot sections (not an error)
@@ -44,7 +49,9 @@ generated shot — distinct from the full-bucket file explorer.
 - Loaded: SKU cards or the two-section detail grid
 
 ## Verification
-- Test files: covered indirectly via `services/api/tests/test_studio.py` (SKU validation)
+- Test files: covered indirectly via `services/api/tests/test_studio.py` (SKU validation);
+  inline-preview disposition (the path that renders thumbnails) in
+  `services/api/tests/test_download_stats.py::test_preview_requests_inline_disposition`
 - Quick verify command: `pnpm test:api`
 - Full verify command: `pnpm lint && pnpm lint:api && pnpm test:api && pnpm check:structure`
 - Pass criteria: pytest green; `/library` renders SKU cards and per-SKU assets

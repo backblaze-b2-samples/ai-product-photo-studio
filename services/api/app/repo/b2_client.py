@@ -151,19 +151,28 @@ def delete_file(key: str) -> None:
 
 
 def get_presigned_url(
-    key: str, filename: str | None = None, expires_in: int = 600
+    key: str,
+    filename: str | None = None,
+    expires_in: int = 600,
+    inline: bool = False,
 ) -> str:
-    """Generate a presigned download URL. Raises RuntimeError on failure."""
+    """Generate a presigned GET URL. Raises RuntimeError on failure.
+
+    ``inline=True`` serves the object with ``Content-Disposition: inline`` so a
+    browser renders it directly in an ``<img>``/``<iframe>`` (used by previews
+    against a private bucket). The default forces ``attachment`` for downloads.
+    """
     client = get_s3_client()
     params: dict = {"Bucket": settings.b2_bucket_name, "Key": key}
+    disposition = "inline" if inline else "attachment"
     if filename:
         # RFC 5987 encoding for non-ASCII filenames
         encoded = quote(filename, safe="")
         params["ResponseContentDisposition"] = (
-            f"attachment; filename=\"{encoded}\"; filename*=UTF-8''{encoded}"
+            f"{disposition}; filename=\"{encoded}\"; filename*=UTF-8''{encoded}"
         )
     else:
-        params["ResponseContentDisposition"] = "attachment"
+        params["ResponseContentDisposition"] = disposition
     try:
         return client.generate_presigned_url(
             "get_object",

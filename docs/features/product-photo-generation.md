@@ -40,13 +40,30 @@ through the Genblaze SDK and written to Backblaze B2 — this is the app's core 
 - Confirm `reference_key` is under this SKU's `uploads/<sku>/reference/` prefix
 - Presign a short-lived (15 min) GET URL for the reference photo
 - Fan the scene prompt out into `variants` prompts (cycling angle/season presets)
+- In `repo/studio_pipeline.py`, fetch the presigned reference once and write it
+  to a local temp file with an image extension matched to the bytes' magic
+  number (`.png`/`.jpg`/`.webp`), then seed each step with a `file://` Asset to
+  that temp file. This is deliberate, not an artifact: the pinned genblaze-openai
+  0.3.0 hands `client.images.edit` an open file handle and the OpenAI client
+  infers the multipart mimetype from that handle's filename. If the SDK fetches
+  the presigned URL itself it writes a `*.img` temp file → `guess_type` returns
+  `None` → `application/octet-stream` → OpenAI 400 `unsupported_mimetype`. Passing
+  a `file://` URL routes the SDK through `_resolve_local_file`, which opens our
+  correctly-named file so OpenAI infers a valid `image/*` type. The temp file is
+  removed in a `finally` after the run.
 - Build a `Pipeline(project_id=sku, max_concurrency=N)` (the concurrency cap is a
   constructor kwarg in genblaze-core 0.3.2, not a `run()` kwarg) with one `.step()`
   per prompt, each seeded with the reference as
-  `external_inputs=[Asset(url=presigned, sha256=…)]` → gpt-image-1 routes to
+  `external_inputs=[Asset(url="file://…", sha256=…)]` → gpt-image-1 routes to
   `/images/edits` (reference-faithful, `input_fidelity="high"`)
 - `pipe.run(sink=ObjectStorageSink(S3StorageBackend.for_backblaze(...)), timeout=…, raise_on_failure=False)`
 - Map succeeded steps → `GeneratedShot`; surface failures in `failed`
+- The Studio result grid and the reference-photo thumbnail render each image
+  through the shared `PresignedImage` component
+  (`apps/web/src/components/presigned-image.tsx`), which fetches an inline
+  presigned URL from `GET /files/{key}/preview` via `usePreviewUrl`. The bucket
+  is private, so embedding the static public B2 URL in `<img src>` would 401;
+  the inline presigned URL renders regardless of bucket ACL.
 
 ## Edge Cases
 - SKU invalid → 400
@@ -60,11 +77,15 @@ through the Genblaze SDK and written to Backblaze B2 — this is the app's core 
 - Empty: "Your generated product shots will appear here"
 - Loading: blaze generating loader ("Generating shots…")
 - Error: toast with the API detail
-- Loaded: shot grid with size/quality/cost badges, sha256, and manifest link
+- Loaded: shot grid with size/quality/cost badges, sha256, and manifest link;
+  each shot image loads via the inline presigned-preview path (private-bucket safe)
 
 ## Verification
-- Test files: `services/api/tests/test_studio.py`
-- Required cases: SKU validation, prompt fan-out, reference-prefix guard, result mapping
+- Test files: `services/api/tests/test_studio.py`,
+  `services/api/tests/test_pipeline_signatures.py`
+- Required cases: SKU validation, prompt fan-out, reference-prefix guard, result
+  mapping; reference asset is a `file://` URL to a temp file with a real image
+  extension (never `.img`/octet-stream), incl. unrecognized bytes
 - Quick verify command: `pnpm test:api`
 - Full verify command: `pnpm lint && pnpm lint:api && pnpm test:api && pnpm check:structure`
 - Live check: with real `B2_*` + `OPENAI_API_KEY`, `POST /skus/<sku>/generate` returns
