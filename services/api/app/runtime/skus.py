@@ -7,6 +7,7 @@ Handlers import only from ``app.service`` / ``app.types`` — never from
 import logging
 
 from fastapi import APIRouter, HTTPException
+from fastapi.concurrency import run_in_threadpool
 
 from app.service.studio import (
     StudioError,
@@ -51,8 +52,15 @@ async def get_sku_shots_endpoint(sku: str):
 
 @router.post("/skus/{sku}/generate", response_model=GenerationResult)
 async def generate_endpoint(sku: str, req: GenerationRequest):
+    # ``generate`` is a blocking, multi-minute call (gpt-image-1 edits + B2
+    # writes). Running it directly on the event loop would starve the loop for
+    # the whole run, so uvicorn could not service this connection's keep-alive
+    # and an intermediary (edge/proxy) may drop the now-idle-looking connection
+    # before the response is sent — the work completes but the client hangs.
+    # Offload to a threadpool so the loop stays responsive and the response is
+    # delivered when the run finishes.
     try:
-        result = generate(sku, req)
+        result = await run_in_threadpool(generate, sku, req)
     except StudioError as e:
         logger.warning("generate rejected for sku=%s: %s", sku, e.detail)
         raise HTTPException(status_code=e.status_code, detail=e.detail) from None

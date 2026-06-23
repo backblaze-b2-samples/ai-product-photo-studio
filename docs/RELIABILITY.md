@@ -1,4 +1,4 @@
-<!-- last_verified: 2026-03-06 -->
+<!-- last_verified: 2026-06-23 -->
 # Reliability
 
 Reliability expectations and practices for this project.
@@ -13,6 +13,20 @@ Reliability expectations and practices for this project.
 - HTTP handlers return structured error responses with appropriate status codes
 - External service failures (B2) are caught and surfaced as 500/503 responses
 - No unhandled exceptions leak stack traces to clients
+
+## Long-Running Generation
+
+- `POST /skus/{sku}/generate` is a multi-minute call. The handler offloads the
+  blocking pipeline run to a threadpool (`run_in_threadpool`) so uvicorn's event
+  loop is never starved — the connection's keep-alive and `/health` stay
+  responsive for the whole run, so intermediaries don't drop the connection
+  before the response is sent.
+- Server run cap: `studio_run_timeout` (default 300s). Client backstop:
+  `generateShots()` aborts after ~360s and surfaces a 408, so the UI can never
+  spin forever on a stalled connection.
+- The frontend invalidates queries `onSettled`, so shots that completed and
+  landed in B2 surface in the Library/dashboard even if the original response
+  was lost.
 
 ## Logging
 

@@ -72,11 +72,22 @@ through the Genblaze SDK and written to Backblaze B2 — this is the app's core 
 - All variants fail (e.g. bad `OPENAI_API_KEY`) → 502 with a clear message
 - Reference > 50MB → rejected (matches OpenAI's edit-input limit)
 - Provider/network error → 502; partial failures return the shots that succeeded
+- Long run / stalled connection: a generation can take minutes. The route
+  offloads the blocking pipeline run to a threadpool (`run_in_threadpool`) so
+  uvicorn's event loop keeps the connection alive (and `/health` responsive)
+  for the whole run — without this the loop is starved and an edge/proxy can
+  drop the idle-looking connection, completing the work but hanging the client.
+  As a client-side backstop, `generateShots()` aborts after ~360s (just above
+  the 300s server `studio_run_timeout`) and surfaces a 408; `useGenerateShots`
+  invalidates queries `onSettled` (not just `onSuccess`), so shots that did land
+  in B2 still surface in the Library/dashboard even when the response was lost.
 
 ## UX States
 - Empty: "Your generated product shots will appear here"
 - Loading: blaze generating loader ("Generating shots…")
-- Error: toast with the API detail
+- Error: toast with the API detail. On a client-side timeout (408) the toast
+  instead points the user to the Library for that SKU, where any completed
+  shots appear — the loader always clears (never spins forever).
 - Loaded: shot grid with size/quality/cost badges, sha256, and manifest link;
   each shot image loads via the inline presigned-preview path (private-bucket safe)
 

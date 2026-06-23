@@ -36,22 +36,47 @@ export class ApiError extends Error {
   }
 }
 
-async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  let res: Response;
+async function apiFetch<T>(
+  path: string,
+  init?: RequestInit,
+  // Optional client-side deadline. Without it a stalled connection (e.g. an
+  // edge/proxy that dropped a long request after the server finished its work)
+  // would leave the caller's promise pending forever. On expiry we abort and
+  // surface a 408 so callers can recover instead of hanging.
+  timeoutMs?: number,
+): Promise<T> {
+  const controller = new AbortController();
+  const timer = timeoutMs
+    ? setTimeout(() => controller.abort(), timeoutMs)
+    : null;
   try {
-    res = await fetch(`${API_BASE}${path}`, init);
-  } catch {
-    // Network failure (offline, DNS, CORS, etc.)
-    throw new ApiError("Network error — check your connection", 0);
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE}${path}`, {
+        ...init,
+        signal: controller.signal,
+      });
+    } catch {
+      if (controller.signal.aborted) {
+        throw new ApiError(
+          "Request timed out. The work may still be completing on the server.",
+          408,
+        );
+      }
+      // Network failure (offline, DNS, CORS, etc.)
+      throw new ApiError("Network error — check your connection", 0);
+    }
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new ApiError(
+        body.detail || `API error: ${res.status}`,
+        res.status,
+      );
+    }
+    return res.json();
+  } finally {
+    if (timer) clearTimeout(timer);
   }
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new ApiError(
-      body.detail || `API error: ${res.status}`,
-      res.status,
-    );
-  }
-  return res.json();
 }
 
 export async function getHealth() {
@@ -105,6 +130,13 @@ export async function getSkuShots(sku: string) {
   return apiFetch<SkuAsset[]>(`/skus/${encodeURIComponent(sku)}/shots`);
 }
 
+// Sits just above the backend's studio_run_timeout (300s): a run that is going
+// to succeed returns within the server cap, so a longer wait means the
+// connection has stalled. Bounding it here guarantees the UI never spins
+// forever — on expiry the mutation settles and we refresh from B2 (see
+// useGenerateShots), where any completed shots have already landed.
+const GENERATE_TIMEOUT_MS = 360_000;
+
 export async function generateShots(sku: string, req: GenerationRequest) {
   return apiFetch<GenerationResult>(
     `/skus/${encodeURIComponent(sku)}/generate`,
@@ -113,6 +145,7 @@ export async function generateShots(sku: string, req: GenerationRequest) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(req),
     },
+    GENERATE_TIMEOUT_MS,
   );
 }
 

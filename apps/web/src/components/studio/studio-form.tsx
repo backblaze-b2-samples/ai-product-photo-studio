@@ -19,7 +19,7 @@ import {
 import { GeneratingLoader } from "@/components/ui/generating-loader";
 import { PresignedImage } from "@/components/presigned-image";
 import { ShotGrid } from "./shot-grid";
-import { uploadFile } from "@/lib/api-client";
+import { ApiError, uploadFile } from "@/lib/api-client";
 import { useGenerateShots } from "@/lib/queries";
 import type {
   FileUploadResponse,
@@ -97,8 +97,19 @@ export function StudioForm() {
             `Generated ${res.shots.length} shot${res.shots.length === 1 ? "" : "s"} for ${res.sku}.`,
           );
         },
-        onError: (err) =>
-          toast.error(err instanceof Error ? err.message : "Generation failed"),
+        onError: (err) => {
+          // 408 = the request timed out client-side. The server may have
+          // finished the run, so the shots can already be in B2 — point the
+          // user to the Library (which onSettled has just refreshed) instead
+          // of implying the work was lost.
+          if (err instanceof ApiError && err.status === 408) {
+            toast.error(
+              `Generation is taking longer than expected. If it completed, your shots will appear in the Library for ${sku.trim()}.`,
+            );
+            return;
+          }
+          toast.error(err instanceof Error ? err.message : "Generation failed");
+        },
       },
     );
   }, [sku, reference, scenePrompt, angles, seasons, variants, size, quality, generate]);

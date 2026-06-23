@@ -106,8 +106,11 @@ export function useGenerateShots() {
   return useMutation({
     mutationFn: ({ sku, req }: { sku: string; req: GenerationRequest }) =>
       generateShots(sku, req),
-    onSuccess: () => {
-      // New shots change SKU summaries, the per-SKU view, and storage stats.
+    // onSettled (not onSuccess): if the request times out but the server
+    // actually finished the run, the shots are already in B2. Invalidating on
+    // both outcomes refreshes SKU summaries, the per-SKU view, and storage
+    // stats so those completed shots surface in the Library/dashboard.
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: qk.all });
     },
   });
