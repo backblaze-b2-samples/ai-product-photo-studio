@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Images, Package, ShieldCheck } from "lucide-react";
 
@@ -14,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
+import { PresignedImage } from "@/components/presigned-image";
 import { useSku, useSkus } from "@/lib/queries";
 import { formatDate } from "@/lib/utils";
 import type { SkuAsset } from "@ai-product-photo-studio/shared";
@@ -21,10 +21,9 @@ import type { SkuAsset } from "@ai-product-photo-studio/shared";
 function AssetCard({ asset }: { asset: SkuAsset }) {
   return (
     <figure className="rounded-lg border border-border overflow-hidden">
-      {asset.url ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={asset.url}
+      {asset.key ? (
+        <PresignedImage
+          objectKey={asset.key}
           alt={asset.filename}
           className="aspect-square w-full object-cover bg-muted"
         />
@@ -98,10 +97,15 @@ function SkuPicker() {
 }
 
 export function SkuLibrary({ sku }: { sku?: string }) {
-  const [activeSku] = useState(sku);
-  const { data, isLoading, error, refetch } = useSku(activeSku);
+  // Read `sku` straight from the prop (driven by the URL's ?sku= param) rather
+  // than freezing it in useState. The parent page is a server component that
+  // re-renders on every client-side navigation, but this client component does
+  // not remount when only the search param changes — a useState snapshot would
+  // stay stuck on the first-mount value (undefined), leaving the SKU picker
+  // showing even though the page title updated.
+  const { data, isLoading, error, refetch } = useSku(sku);
 
-  if (!activeSku) {
+  if (!sku) {
     return <SkuPicker />;
   }
 
