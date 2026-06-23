@@ -128,7 +128,11 @@ export function StudioForm() {
           <div className="space-y-1.5">
             <Label>Reference photo</Label>
             <label
-              className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-muted/30 px-4 py-6 text-center cursor-pointer hover:bg-muted/50 transition-colors"
+              className={`flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-muted/30 px-4 py-6 text-center transition-colors ${
+                uploading
+                  ? "cursor-wait opacity-70"
+                  : "cursor-pointer hover:bg-muted/50"
+              }`}
             >
               <ImageUp className="h-5 w-5 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">
@@ -142,10 +146,12 @@ export function StudioForm() {
                 type="file"
                 accept="image/png,image/jpeg,image/webp"
                 className="hidden"
-                disabled={uploading || !sku.trim()}
+                disabled={uploading}
                 onChange={(e) => {
                   const f = e.target.files?.[0];
                   if (f) onReferenceSelected(f);
+                  // reset so re-selecting the same file fires onChange again
+                  e.target.value = "";
                 }}
               />
             </label>
