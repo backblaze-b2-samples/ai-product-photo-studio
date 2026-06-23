@@ -146,7 +146,14 @@ def generate_shots(
 
     reference = _reference_asset(reference_url)
 
-    pipe = Pipeline(PIPELINE_NAME, project_id=sku)
+    # max_concurrency is a Pipeline(...) constructor kwarg in genblaze-core
+    # 0.3.2 — NOT a run() kwarg (run() takes no **kwargs). Setting it here
+    # caps how many edit steps run in parallel.
+    pipe = Pipeline(
+        PIPELINE_NAME,
+        project_id=sku,
+        max_concurrency=len(variant_prompts) or 1,
+    )
     for prompt in variant_prompts:
         # Reference attached as external_inputs => step.inputs is non-empty
         # => DalleProvider routes to /images/edits (reference-faithful).
@@ -164,7 +171,6 @@ def generate_shots(
     result = pipe.run(
         sink=_sink(sku),
         timeout=settings.studio_run_timeout,
-        max_concurrency=len(variant_prompts),
         raise_on_failure=False,
     )
     run: Run = result.run

@@ -40,10 +40,12 @@ through the Genblaze SDK and written to Backblaze B2 — this is the app's core 
 - Confirm `reference_key` is under this SKU's `uploads/<sku>/reference/` prefix
 - Presign a short-lived (15 min) GET URL for the reference photo
 - Fan the scene prompt out into `variants` prompts (cycling angle/season presets)
-- Build a `Pipeline(project_id=sku)` with one `.step()` per prompt, each seeded with
-  the reference as `external_inputs=[Asset(url=presigned, sha256=…)]` →
-  gpt-image-1 routes to `/images/edits` (reference-faithful, `input_fidelity="high"`)
-- `pipe.run(sink=ObjectStorageSink(S3StorageBackend.for_backblaze(...)), max_concurrency=N)`
+- Build a `Pipeline(project_id=sku, max_concurrency=N)` (the concurrency cap is a
+  constructor kwarg in genblaze-core 0.3.2, not a `run()` kwarg) with one `.step()`
+  per prompt, each seeded with the reference as
+  `external_inputs=[Asset(url=presigned, sha256=…)]` → gpt-image-1 routes to
+  `/images/edits` (reference-faithful, `input_fidelity="high"`)
+- `pipe.run(sink=ObjectStorageSink(S3StorageBackend.for_backblaze(...)), timeout=…, raise_on_failure=False)`
 - Map succeeded steps → `GeneratedShot`; surface failures in `failed`
 
 ## Edge Cases

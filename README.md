@@ -70,6 +70,8 @@ Frontend at `localhost:3000`, API at `localhost:8000`. Go to **Studio**, enter a
 
 `pnpm dev` runs `pnpm doctor` first — a preflight that catches the common setup gotchas (wrong Node/Python version, missing venv, missing or placeholder `.env`, ports taken). Run it standalone with `pnpm doctor`.
 
+> **Deploying separately?** The web app reads `NEXT_PUBLIC_API_URL` (a build-time variable) to find the API. It defaults to `http://localhost:8000` for local dev; set it to your deployed API origin in production. See `.env.example` and [infra/railway/README.md](infra/railway/README.md).
+
 ## Cost note (core API — surfaced for transparency)
 
 OpenAI's gpt-image-1 has no free tier. At the app defaults (`quality="medium"`, `size="1024x1024"`, 3 variants) one generate is roughly 3 × $0.07 ≈ **$0.21**; a 3-SKU walkthrough ≈ **$0.85** — under $1. Raising quality to `high` (~$0.19/image) or generating more variants pushes a full run over $1. The defaults are conservative on the *knobs* only — gpt-image-1 stays the model.
