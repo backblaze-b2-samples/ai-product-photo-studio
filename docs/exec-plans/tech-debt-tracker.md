@@ -1,4 +1,4 @@
-<!-- last_verified: 2026-06-23 -->
+<!-- last_verified: 2026-06-25 -->
 # Tech Debt Tracker
 
 Known tech debt items. Agents update this when they discover or create tech debt.

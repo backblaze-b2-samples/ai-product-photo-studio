@@ -18,24 +18,28 @@ export function humanizeBytes(bytes: number) {
   return `${bytes.toFixed(1)} TB`;
 }
 
-export type DateFormatVariant = "dateTime" | "dateOnly" | "monthDay" | "localDateTime";
+const dateTimeFormatOptions = {
+  month: "short",
+  day: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+} satisfies Intl.DateTimeFormatOptions;
 
-const dateFormatters: Record<DateFormatVariant, (date: Date) => string> = {
-  dateTime: (date) =>
-    date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }),
-  dateOnly: (date) => date.toLocaleDateString(),
-  monthDay: (date) =>
-    date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-    }),
-  localDateTime: (date) => date.toLocaleString(),
-};
+const monthDayFormatOptions = {
+  month: "short",
+  day: "numeric",
+} satisfies Intl.DateTimeFormatOptions;
+
+const dateFormatters = {
+  dateTime: (date: Date) =>
+    date.toLocaleDateString("en-US", dateTimeFormatOptions),
+  dateOnly: (date: Date) => date.toLocaleDateString(),
+  monthDay: (date: Date) =>
+    date.toLocaleDateString("en-US", monthDayFormatOptions),
+  localDateTime: (date: Date) => date.toLocaleString(),
+} satisfies Record<string, (date: Date) => string>;
+
+export type DateFormatVariant = keyof typeof dateFormatters;
 
 export function formatDate(
   dateStr: string,
