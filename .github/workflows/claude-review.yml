@@ -58,3 +58,7 @@ jobs:
       - name: Typecheck frontend
         if: ${{ hashFiles('apps/web/package.json') != '' }}
         run: pnpm typecheck
+
+      - name: Test frontend
+        if: ${{ hashFiles('apps/web/package.json') != '' }}
+        run: pnpm test:web

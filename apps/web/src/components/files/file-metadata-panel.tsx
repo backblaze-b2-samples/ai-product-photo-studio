@@ -63,7 +63,7 @@ export function FileMetadataPanel({ metadata }: FileMetadataPanelProps) {
         <Separator />
         <MetaRow
           label="Uploaded"
-          value={formatDate(metadata.uploaded_at, "localDateTime")}
+          value={formatDate(metadata.uploaded_at, "numericDateTime")}
         />
       </CardContent>
     </Card>
