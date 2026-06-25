@@ -38,7 +38,7 @@ export function UploadChart() {
   const data = useMemo(() => {
     const days = activity ?? [];
     return days.map((d, i) => ({
-      date: formatDate(d.date + "T00:00:00", "monthDay"),
+      date: formatDate(`${d.date}T00:00:00Z`, "monthDay"),
       cumulative: days
         .slice(0, i + 1)
         .reduce((sum, day) => sum + day.uploads, 0),

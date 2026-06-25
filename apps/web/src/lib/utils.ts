@@ -18,41 +18,30 @@ export function humanizeBytes(bytes: number) {
   return `${bytes.toFixed(1)} TB`;
 }
 
-const DATE_FORMAT_LOCALE = "en-US";
-// Keep server-rendered client components deterministic across environments.
-const DATE_FORMAT_TIME_ZONE = "UTC";
+const CHART_DATE_FORMAT_LOCALE = "en-US";
+const CHART_DATE_FORMAT_TIME_ZONE = "UTC";
 
 const dateTimeFormatOptions = {
   month: "short",
   day: "numeric",
   hour: "2-digit",
   minute: "2-digit",
-  timeZone: DATE_FORMAT_TIME_ZONE,
 } satisfies Intl.DateTimeFormatOptions;
 
-const dateOnlyFormatOptions = {
-  timeZone: DATE_FORMAT_TIME_ZONE,
-} satisfies Intl.DateTimeFormatOptions;
-
+// Activity stats are grouped by UTC date strings from the API.
 const monthDayFormatOptions = {
   month: "short",
   day: "numeric",
-  timeZone: DATE_FORMAT_TIME_ZONE,
-} satisfies Intl.DateTimeFormatOptions;
-
-const numericDateTimeFormatOptions = {
-  timeZone: DATE_FORMAT_TIME_ZONE,
+  timeZone: CHART_DATE_FORMAT_TIME_ZONE,
 } satisfies Intl.DateTimeFormatOptions;
 
 const dateFormatters = {
   dateTime: (date: Date) =>
-    date.toLocaleDateString(DATE_FORMAT_LOCALE, dateTimeFormatOptions),
-  dateOnly: (date: Date) =>
-    date.toLocaleDateString(DATE_FORMAT_LOCALE, dateOnlyFormatOptions),
+    date.toLocaleDateString("en-US", dateTimeFormatOptions),
+  dateOnly: (date: Date) => date.toLocaleDateString(),
   monthDay: (date: Date) =>
-    date.toLocaleDateString(DATE_FORMAT_LOCALE, monthDayFormatOptions),
-  numericDateTime: (date: Date) =>
-    date.toLocaleString(DATE_FORMAT_LOCALE, numericDateTimeFormatOptions),
+    date.toLocaleDateString(CHART_DATE_FORMAT_LOCALE, monthDayFormatOptions),
+  numericDateTime: (date: Date) => date.toLocaleString(),
 } satisfies Record<string, (date: Date) => string>;
 
 export type DateFormatVariant = keyof typeof dateFormatters;

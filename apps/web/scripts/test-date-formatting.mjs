@@ -24,14 +24,23 @@ new Function("exports", "require", "module", outputText)(
 
 const { formatDate } = utilsModule.exports;
 
-test("formatDate keeps UTC boundary timestamps deterministic", () => {
+test("formatDate preserves local variants and UTC chart labels", () => {
   const timestamp = "2026-06-25T00:30:00.000Z";
+  const date = new Date(timestamp);
 
-  assert.equal(formatDate(timestamp), "Jun 25, 12:30 AM");
-  assert.equal(formatDate(timestamp, "dateOnly"), "6/25/2026");
+  assert.equal(
+    formatDate(timestamp),
+    date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+  );
+  assert.equal(formatDate(timestamp, "dateOnly"), date.toLocaleDateString());
   assert.equal(formatDate(timestamp, "monthDay"), "Jun 25");
   assert.equal(
     formatDate(timestamp, "numericDateTime"),
-    "6/25/2026, 12:30:00 AM",
+    date.toLocaleString(),
   );
 });
