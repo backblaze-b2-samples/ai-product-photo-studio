@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { formatDate } from "@/lib/utils";
 import type { FileMetadataDetail } from "@ai-product-photo-studio/shared";
 
 interface FileMetadataPanelProps {
@@ -62,7 +63,7 @@ export function FileMetadataPanel({ metadata }: FileMetadataPanelProps) {
         <Separator />
         <MetaRow
           label="Uploaded"
-          value={new Date(metadata.uploaded_at).toLocaleString()}
+          value={formatDate(metadata.uploaded_at, "localDateTime")}
         />
       </CardContent>
     </Card>

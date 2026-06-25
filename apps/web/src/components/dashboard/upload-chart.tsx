@@ -20,6 +20,7 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { useUploadActivity } from "@/lib/queries";
+import { formatDate } from "@/lib/utils";
 
 const chartConfig = {
   cumulative: {
@@ -37,10 +38,7 @@ export function UploadChart() {
   const data = useMemo(() => {
     const days = activity ?? [];
     return days.map((d, i) => ({
-      date: new Date(d.date + "T00:00:00").toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-      }),
+      date: formatDate(d.date + "T00:00:00", "monthDay"),
       cumulative: days
         .slice(0, i + 1)
         .reduce((sum, day) => sum + day.uploads, 0),

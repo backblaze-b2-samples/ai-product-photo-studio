@@ -18,11 +18,28 @@ export function humanizeBytes(bytes: number) {
   return `${bytes.toFixed(1)} TB`;
 }
 
-export function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+type DateFormatVariant = "dateTime" | "dateOnly" | "monthDay" | "localDateTime";
+
+const dateFormatters: Record<DateFormatVariant, (date: Date) => string> = {
+  dateTime: (date) =>
+    date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+  dateOnly: (date) => date.toLocaleDateString(),
+  monthDay: (date) =>
+    date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    }),
+  localDateTime: (date) => date.toLocaleString(),
+};
+
+export function formatDate(
+  dateStr: string,
+  variant: DateFormatVariant = "dateTime",
+) {
+  return dateFormatters[variant](new Date(dateStr));
 }
