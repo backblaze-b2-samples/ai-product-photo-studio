@@ -40,10 +40,10 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
+import { ClientFormattedDate } from "@/components/client-formatted-date";
 import { FilePreview } from "./file-preview";
 import { ApiError, getDownloadUrl } from "@/lib/api-client";
 import { useDeleteFile, useFiles } from "@/lib/queries";
-import { formatDate } from "@/lib/utils";
 import { buildFileTree, type TreeNode, type TreeFolder } from "@/lib/file-tree";
 import type { FileMetadata } from "@ai-product-photo-studio/shared";
 
@@ -151,7 +151,7 @@ function TreeRow({
           {file.size_human}
         </span>
         <span className="text-xs text-muted-foreground hidden md:inline">
-          {formatDate(file.uploaded_at)}
+          <ClientFormattedDate value={file.uploaded_at} />
         </span>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

@@ -14,8 +14,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
+import { ClientFormattedDate } from "@/components/client-formatted-date";
 import { useSkus } from "@/lib/queries";
-import { formatDate } from "@/lib/utils";
 
 // "Recent generations" table — most recently active SKUs, newest first.
 export function RecentUploadsTable() {
@@ -94,7 +94,11 @@ export function RecentUploadsTable() {
                     {s.total_size_human}
                   </TableCell>
                   <TableCell className="text-muted-foreground whitespace-nowrap">
-                    {s.latest_at ? formatDate(s.latest_at) : "—"}
+                    {s.latest_at ? (
+                      <ClientFormattedDate value={s.latest_at} />
+                    ) : (
+                      "—"
+                    )}
                   </TableCell>
                 </TableRow>
               ))}

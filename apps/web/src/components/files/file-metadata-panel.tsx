@@ -1,5 +1,8 @@
 "use client";
 
+import type { ReactNode } from "react";
+
+import { ClientFormattedDate } from "@/components/client-formatted-date";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import type { FileMetadataDetail } from "@ai-product-photo-studio/shared";
@@ -8,7 +11,7 @@ interface FileMetadataPanelProps {
   metadata: FileMetadataDetail;
 }
 
-function MetaRow({ label, value }: { label: string; value: string | number }) {
+function MetaRow({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="flex justify-between text-sm">
       <span className="text-muted-foreground">{label}</span>
@@ -62,7 +65,12 @@ export function FileMetadataPanel({ metadata }: FileMetadataPanelProps) {
         <Separator />
         <MetaRow
           label="Uploaded"
-          value={new Date(metadata.uploaded_at).toLocaleString()}
+          value={
+            <ClientFormattedDate
+              value={metadata.uploaded_at}
+              variant="numericDateTime"
+            />
+          }
         />
       </CardContent>
     </Card>

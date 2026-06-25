@@ -7,6 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ClientFormattedDate } from "@/components/client-formatted-date";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePreviewUrl } from "@/lib/queries";
 import type { FileMetadata } from "@ai-product-photo-studio/shared";
@@ -78,9 +79,10 @@ export function FilePreview({ file, open, onOpenChange }: FilePreviewProps) {
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Uploaded</span>
-                <span>
-                  {new Date(file.uploaded_at).toLocaleDateString()}
-                </span>
+                <ClientFormattedDate
+                  value={file.uploaded_at}
+                  variant="dateOnly"
+                />
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Key</span>

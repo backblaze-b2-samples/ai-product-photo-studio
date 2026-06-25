@@ -1,4 +1,4 @@
-<!-- last_verified: 2026-05-21 -->
+<!-- last_verified: 2026-06-25 -->
 # Dev Workflows
 
 Engineering workflows for this repo.
@@ -58,9 +58,15 @@ Engineering workflows for this repo.
 - Structure: `pnpm check:structure`
 - Frontend typecheck: `pnpm typecheck`
 - Frontend lint: `pnpm lint`
+- Frontend unit: `pnpm test:web`
 - Backend lint: `pnpm lint:api`
 - Full suite: `pnpm typecheck && pnpm lint && pnpm lint:api && pnpm test:api && pnpm check:structure`
 - E2E: `pnpm test:e2e` (run `pnpm --filter @ai-product-photo-studio/web exec playwright install chromium` once first)
+
+### CI
+- Pull request CI installs workspace dependencies from the repository root with
+  `pnpm install --frozen-lockfile` before running frontend type checks and
+  frontend unit tests.
 
 ### When to run
 - After behavior change: run relevant subset

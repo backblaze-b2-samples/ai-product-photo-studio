@@ -18,11 +18,37 @@ export function humanizeBytes(bytes: number) {
   return `${bytes.toFixed(1)} TB`;
 }
 
-export function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+const CHART_DATE_FORMAT_LOCALE = "en-US";
+const CHART_DATE_FORMAT_TIME_ZONE = "UTC";
+
+const dateTimeFormatOptions = {
+  month: "short",
+  day: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+} satisfies Intl.DateTimeFormatOptions;
+
+// Activity stats are grouped by UTC date strings from the API.
+const monthDayFormatOptions = {
+  month: "short",
+  day: "numeric",
+  timeZone: CHART_DATE_FORMAT_TIME_ZONE,
+} satisfies Intl.DateTimeFormatOptions;
+
+const dateFormatters = {
+  dateTime: (date: Date) =>
+    date.toLocaleDateString("en-US", dateTimeFormatOptions),
+  dateOnly: (date: Date) => date.toLocaleDateString(),
+  monthDay: (date: Date) =>
+    date.toLocaleDateString(CHART_DATE_FORMAT_LOCALE, monthDayFormatOptions),
+  numericDateTime: (date: Date) => date.toLocaleString(),
+} satisfies Record<string, (date: Date) => string>;
+
+export type DateFormatVariant = keyof typeof dateFormatters;
+
+export function formatDate(
+  dateStr: string,
+  variant: DateFormatVariant = "dateTime",
+) {
+  return dateFormatters[variant](new Date(dateStr));
 }

@@ -13,9 +13,9 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
+import { ClientFormattedDate } from "@/components/client-formatted-date";
 import { PresignedImage } from "@/components/presigned-image";
 import { useSku, useSkus } from "@/lib/queries";
-import { formatDate } from "@/lib/utils";
 import type { SkuAsset } from "@ai-product-photo-studio/shared";
 
 function AssetCard({ asset }: { asset: SkuAsset }) {
@@ -44,7 +44,7 @@ function AssetCard({ asset }: { asset: SkuAsset }) {
         </div>
         <p className="flex items-center gap-1 text-[10px] text-muted-foreground">
           <ShieldCheck className="h-3 w-3 text-[var(--success)]" />
-          {formatDate(asset.uploaded_at)}
+          <ClientFormattedDate value={asset.uploaded_at} />
         </p>
       </figcaption>
     </figure>
