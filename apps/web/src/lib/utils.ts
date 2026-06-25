@@ -18,7 +18,7 @@ export function humanizeBytes(bytes: number) {
   return `${bytes.toFixed(1)} TB`;
 }
 
-type DateFormatVariant = "dateTime" | "dateOnly" | "monthDay" | "localDateTime";
+export type DateFormatVariant = "dateTime" | "dateOnly" | "monthDay" | "localDateTime";
 
 const dateFormatters: Record<DateFormatVariant, (date: Date) => string> = {
   dateTime: (date) =>
