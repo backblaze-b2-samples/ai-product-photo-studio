@@ -1,7 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
 import { formatDate, type DateFormatVariant } from "@/lib/utils";
 
 interface ClientFormattedDateProps {
@@ -13,11 +11,8 @@ export function ClientFormattedDate({
   value,
   variant = "dateTime",
 }: ClientFormattedDateProps) {
-  const [formatted, setFormatted] = useState("");
-
-  useEffect(() => {
-    setFormatted(formatDate(value, variant));
-  }, [value, variant]);
+  const formatted =
+    typeof window === "undefined" ? "" : formatDate(value, variant);
 
   return <span suppressHydrationWarning>{formatted}</span>;
 }
