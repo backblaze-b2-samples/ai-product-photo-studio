@@ -10,9 +10,9 @@ Pillow>=11.0.0
 
 # Image generation via the Genblaze SDK (provider orchestration).
 # genblaze imports are confined to app/repo/ (mirrors the boto3 rule).
-genblaze-core==0.3.2
-genblaze-openai==0.3.0
-genblaze-s3==0.3.2
+genblaze-core>=0.3.8,<0.4
+genblaze-openai>=0.3.4,<0.4
+genblaze-s3>=0.3.6,<0.4
 
 # Dev / quality
 ruff>=0.8.0
