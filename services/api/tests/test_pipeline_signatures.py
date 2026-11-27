@@ -17,6 +17,7 @@ from pathlib import Path
 from unittest import mock
 from urllib.parse import urlparse
 
+import pytest
 from genblaze_core import Asset, Modality, Pipeline
 from genblaze_openai import DalleProvider
 from genblaze_openai.dalle import _resolve_local_file
@@ -72,20 +73,18 @@ def test_run_signature_binds_studio_kwargs_and_rejects_max_concurrency():
     """
     run_sig = inspect.signature(Pipeline.run)
 
-    # The studio's actual run() call: sink + timeout + raise_on_failure.
-    # bind_partial against the unbound signature (self omitted) must succeed.
-    bound = run_sig.bind_partial(
-        sink=object(), timeout=300, raise_on_failure=False
-    )
-    assert "max_concurrency" not in bound.arguments
-
-    # And run() must reject max_concurrency (it has no **kwargs).
+    # The studio's actual run() call: sink + timeout + raise_on_failure. Each
+    # must be a named parameter, not swallowed by a catch-all **kwargs.
+    for name in ("sink", "timeout", "raise_on_failure"):
+        assert name in run_sig.parameters, (
+            f"run() no longer names {name!r} — re-check the studio call site"
+        )
     assert "max_concurrency" not in run_sig.parameters
-    has_var_kw = any(
-        p.kind == inspect.Parameter.VAR_KEYWORD
-        for p in run_sig.parameters.values()
-    )
-    assert not has_var_kw, "run() grew **kwargs — re-check the studio call site"
+
+    # genblaze-core 0.3.10 added **unsupported to run(), but only to raise a
+    # clearer TypeError for misplaced options. Assert the behavior directly.
+    with pytest.raises(TypeError, match="max_concurrency"):
+        _build_real_pipeline(1).run(max_concurrency=2)
 
 
 _PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
