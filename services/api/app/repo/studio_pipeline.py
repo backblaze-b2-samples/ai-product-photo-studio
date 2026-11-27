@@ -201,7 +201,7 @@ def generate_shots(
 
     try:
         # max_concurrency is a Pipeline(...) constructor kwarg in genblaze-core
-        # 0.3.2 — NOT a run() kwarg (run() takes no **kwargs). Setting it here
+        # 0.3.x — NOT a run() kwarg (run() raises TypeError on it). Setting it here
         # caps how many edit steps run in parallel.
         pipe = Pipeline(
             PIPELINE_NAME,
